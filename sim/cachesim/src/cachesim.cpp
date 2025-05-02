@@ -11,6 +11,7 @@
 void inst_cache_sim(FILE *fp, int block, int associativity, int block_size, std::string) {
   int hit = 0;
   int miss = 0;
+  uint32_t miss_penalty = 0;
 
   int offset_bits = 2 + std::log2(block_size);
   int index_bits = std::log2(block);
@@ -37,22 +38,30 @@ void inst_cache_sim(FILE *fp, int block, int associativity, int block_size, std:
     }
     
     if (is_hit) {
-        hit++;
+      hit++;
     } else {
-        miss++;
-        if (pc >= 0x0f000000 && pc < 0x0f002000)
-          continue;
-        if (empty_way != -1) {
-            valid_array[index][empty_way] = true;
-            tag_array[index][empty_way] = tag;
-        } else {
-          for (int way = associativity-1; way > 0; way--) {
-            valid_array[index][way] = valid_array[index][way-1];
-            tag_array[index][way] = tag_array[index][way-1];
-          }
-          valid_array[index][0] = true;
-          tag_array[index][0] = tag;
+      miss++;
+      if (pc >= 0x0f000000 && pc < 0x0f002000) {
+        miss_penalty += SRAM_LATENCY;
+        continue;
+      } else if (pc >= 0x30000000 && pc < 0x31000000) {
+        miss_penalty += FLASH_LATENCY * block_size;
+      } else if (pc >= 0xa0000000 && pc < 0xa1000000) {
+        miss_penalty += SDRAM_LATENCY * block_size;
+      } else if (pc >= 0x80000000 && pc < 0x81000000) {
+        miss_penalty += PSRAM_LATENCY * block_size;
+      }
+      if (empty_way != -1) {
+          valid_array[index][empty_way] = true;
+          tag_array[index][empty_way] = tag;
+      } else {
+        for (int way = associativity-1; way > 0; way--) {
+          valid_array[index][way] = valid_array[index][way-1];
+          tag_array[index][way] = tag_array[index][way-1];
         }
+        valid_array[index][0] = true;
+        tag_array[index][0] = tag;
+      }
     }
   }
 
@@ -60,7 +69,8 @@ void inst_cache_sim(FILE *fp, int block, int associativity, int block_size, std:
 
   std::lock_guard<std::mutex> lock(out_lock);
   std::cout << "block: " << block << ", associativity: " << associativity << ", block_size: " << block_size << "\t";
-  std::cout << "hit: " << hit << ", miss: " << miss << ", hit rate: " << (double)hit / (hit + miss) << std::endl;
+  std::cout << "hit: " << hit << ", miss: " << miss << ", hit rate: " << (double)hit / (hit + miss) << "\t";
+  std::cout << "AMAT: " << ((double)miss / (hit+miss)) * ((double)miss_penalty / miss) + 1 << std::endl;
 }
 
 void data_cache_sim(FILE *fp, int block, int associativity, int block_size, std::string) {
