@@ -1,7 +1,22 @@
+#include <cmath>
 #include "branchsim.hpp"
 
+saturat_status branchsim::next_saturate_state(saturat_status state, bool taken) {
+  switch (state) {
+    case STRONGLY_TAKEN:
+      return taken ? STRONGLY_TAKEN : WEAKLY_TAKEN;
+    case WEAKLY_TAKEN:
+      return taken ? STRONGLY_TAKEN : WEAKLY_NOT_TAKEN;
+    case WEAKLY_NOT_TAKEN:
+      return taken ? WEAKLY_TAKEN : STRONGLY_NOT_TAKEN;
+    case STRONGLY_NOT_TAKEN:
+      return taken ? WEAKLY_NOT_TAKEN : STRONGLY_NOT_TAKEN;
+    default:
+      return state; // Invalid state
+  }
+}
 
-branchsim::branchsim() {
+branchsim::branchsim(void) {
   saturat_counter = STRONGLY_NOT_TAKEN;
   ghr = 0;
   bhr = 0;
@@ -11,6 +26,9 @@ branchsim::branchsim() {
   // Initialize the bimodal predictor
   pht_bi_1.resize(PHT_SIZE, STRONGLY_NOT_TAKEN);
   pht_bi_2.resize(PHT_SIZE, STRONGLY_NOT_TAKEN);
+  // Initialize the branch target buffer (BTB)
+  PHT_ADDR_MASK = (1 << (static_cast<uint32_t>(std::log2(PHT_SIZE)))) - 1;
+  GHR_MASK = (1 << (static_cast<uint32_t>(std::log2(PHT_SIZE)))) - 1;
   // Initialize the branch target buffer (BTB)
 }
 
@@ -28,22 +46,14 @@ branchsim::branchsim(uint32_t pht_size) {
   // Initialize the branch target buffer (BTB)
 }
 
-bool branchsim::saturate_branch_predictor(bool taken) {
+bool branchsim::saturate_branch_predictor() {
   bool prediction = branchsim::saturat_counter == STRONGLY_TAKEN ||
                     branchsim::saturat_counter == WEAKLY_TAKEN;
   return prediction;
 }
 
 void branchsim::update_saturate_branch_predictor(bool taken) {
-  if (taken) {
-    if (branchsim::saturat_counter < STRONGLY_TAKEN) {
-      branchsim::saturat_counter++;
-    }
-  } else {
-    if (branchsim::saturat_counter > STRONGLY_NOT_TAKEN) {
-      branchsim::saturat_counter--;
-    }
-  }
+  branchsim::saturat_counter = next_saturate_state(branchsim::saturat_counter, taken);
 }
 
 bool branchsim::saturate_global_history_predictor(uint32_t pc) {
@@ -57,15 +67,7 @@ bool branchsim::saturate_global_history_predictor(uint32_t pc) {
 void branchsim::update_saturate_global_history_predictor(uint32_t pc, bool taken) {
   uint32_t index = ((pc >> 2) & this->PHT_ADDR_MASK) ^ this->ghr;
   saturat_status pht_value = this->pht[index];
-  if (taken) {
-    if (pht_value < STRONGLY_TAKEN) {
-      this->pht[index]++;
-    }
-  } else {
-    if (pht_value > STRONGLY_NOT_TAKEN) {
-      this->pht[index]--;
-    }
-  }
+  this->pht[index] = next_saturate_state(pht_value, taken);
   // Update the global history register (GHR)
   this->ghr = (this->ghr << 1) | (taken ? 1 : 0);
   this->ghr &= this->GHR_MASK;
@@ -94,16 +96,15 @@ bool branchsim::backward_propagation_predictor(void) {
   return false;
 }
 
-bool branchsim::update_backward_propagation_predictor(bool taken) {
+void branchsim::update_backward_propagation_predictor(bool taken) {
   // TODO()
-  return false;
 }
 
 void branchsim::update_saturate_bimodal_predictor(bool taken) {
   // TODO()
 }
 
-bool branchsim::saturate_bimodal_predictor(void) {
+bool branchsim::saturate_bimodal_predictor(uint32_t pc) {
   // TODO()
   return false;
 }
