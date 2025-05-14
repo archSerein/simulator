@@ -73,3 +73,8 @@ void btb::update_btb(uint32_t pc, uint32_t target) {
     set.push_back(new_entry); // Add the new entry to the set
   }
 }
+
+void btb::info(void) {
+  Log("block: %ld, associativity: %ld, set: %ld", this->btb_table.at(0).at(0).size(),
+      this->btb_table.at(0).size(), this->btb_table.size());
+}

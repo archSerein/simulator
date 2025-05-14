@@ -24,6 +24,7 @@ class btb {
     btb(struct btb_config &config);
     void update_btb(uint32_t pc, uint32_t target);
     uint32_t get_target(uint32_t pc);
+    void info(void);
   private:
     uint32_t block;
     uint32_t associativity;

@@ -49,3 +49,12 @@ Simulator create_simulator(const SimConfig &config, const std::string &type) {
         throw std::invalid_argument("Unknown simulator type");
     }
 }
+
+uint32_t get_ghr_value(std::deque<std::bitset<BIT_WIDTH>> ghr, uint32_t ghr_width) {
+  // Convert GHR to a single integer value
+  uint32_t ghr_value = 0;
+  for (size_t i = 0; i < ghr_width; ++i) {
+      ghr_value |= (ghr.at(i).to_ulong() << (i * BIT_WIDTH));
+  }
+  return ghr_value;
+}

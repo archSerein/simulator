@@ -5,6 +5,8 @@
 #include "defs.hpp"
 #include "helper.hpp"
 
+std::mutex info;
+
 static const std::unordered_map<std::string, std::function<void(FILE *, struct SimConfig)>> simulator_map = {
   {"saturat_simulator", saturat_simulator},
   {"global_history", global_history_simulator},

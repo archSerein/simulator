@@ -1,6 +1,8 @@
 #ifndef __HELPER_HPP__
 #define __HELPER_HPP__
 
+#include <bitset>
+#include <deque>
 #include <variant>
 #include <string>
 #include "branchsim.hpp"
@@ -21,5 +23,6 @@ using Simulator = std::variant<branchsim, btb>;
 
 struct SimConfig parse_arguments(int argc, char* argv[]);
 Simulator create_simulator(const SimConfig &config, const std::string &type);
+uint32_t  get_ghr_value(std::deque<std::bitset<BIT_WIDTH>>, uint32_t);
 
 #endif // !__HELPER_HPP__
