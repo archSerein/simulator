@@ -24,12 +24,15 @@ branchsim::branchsim(void) {
   bhr = 0;
   this->pht_size = PHT_SIZE;
   this->max_ghr_size = HIST_LEN;
-  this->ghr.resize(HIST_LEN+1);
+  this->PHT_ADDR_MASK = (1 << (static_cast<uint32_t>(std::log2(PHT_SIZE)))) - 1;
+  this->GHR_MASK = (1 << (static_cast<uint32_t>(std::log2(PHT_SIZE)))) - 1;
+
+  this->ghr.resize(HIST_LEN+1, 0);
   this->pht.resize(pht_size, STRONGLY_NOT_TAKEN);
   this->perceptron_table.resize(this->pht_size, std::vector<int32_t>(HIST_LEN+1, 0));
-  // Initialize the branch target buffer (BTB)
-  PHT_ADDR_MASK = (1 << (static_cast<uint32_t>(std::log2(PHT_SIZE)))) - 1;
-  GHR_MASK = (1 << (static_cast<uint32_t>(std::log2(PHT_SIZE)))) - 1;
+  this->pht_bi_not_taken_bias.resize(this->pht_size, STRONGLY_NOT_TAKEN);
+  this->pht_bi_taken_bias.resize(this->pht_size, STRONGLY_NOT_TAKEN);
+  this->pht_bi_choice.resize(this->pht_size, STRONGLY_NOT_TAKEN);
 }
 
 
@@ -38,11 +41,15 @@ branchsim::branchsim(uint32_t pht_size) {
   bhr = 0;
   this->pht_size = pht_size;
   this->max_ghr_size = HIST_LEN;
-  this->ghr.resize(HIST_LEN+1);
+  this->PHT_ADDR_MASK = (1 << (static_cast<uint32_t>(std::log2(pht_size)))) - 1;
+  this->GHR_MASK = (1 << (static_cast<uint32_t>(std::log2(pht_size)))) - 1;
+
+  this->ghr.resize(HIST_LEN+1, 0);
   this->pht.resize(pht_size, STRONGLY_NOT_TAKEN);
   this->perceptron_table.resize(this->pht_size, std::vector<int32_t>(HIST_LEN+1, 0));
-  PHT_ADDR_MASK = (1 << (static_cast<uint32_t>(std::log2(pht_size)))) - 1;
-  GHR_MASK = (1 << (static_cast<uint32_t>(std::log2(pht_size)))) - 1;
+  this->pht_bi_not_taken_bias.resize(this->pht_size, STRONGLY_NOT_TAKEN);
+  this->pht_bi_taken_bias.resize(this->pht_size, STRONGLY_NOT_TAKEN);
+  this->pht_bi_choice.resize(this->pht_size, STRONGLY_NOT_TAKEN);
 }
 
 bool branchsim::saturate_branch_predictor() {
@@ -65,20 +72,17 @@ bool branchsim::saturate_global_history_predictor(uint32_t pc) {
 
 void branchsim::update_saturate_global_history_predictor(uint32_t pc, bool taken) {
   uint32_t index = ((pc >> 2) & this->PHT_ADDR_MASK) ^ get_ghr_value(this->ghr, std::log2(this->pht_size));
-  saturat_status pht_value = this->pht[index];
+  saturat_status pht_value = this->pht.at(index);
   this->pht[index] = next_saturate_state(pht_value, taken);
-  // Update the global history register (GHR)
-  this->ghr.pop_front();
-  this->ghr.push_back(taken);
 }
 
 void branchsim::update_saturate_local_history_predictor(bool taken) {
-  // TODO()
+  // TODO:
 }
 
 bool branchsim::saturate_local_history_predictor(uint32_t pc) {
-  // TODO()
-  return false;
+  // TODO:
+  return true;
 }
 
 void branchsim::update_perceptron_predictor(uint32_t pc, bool resolveDir, bool preDir, uint32_t target) {
@@ -122,8 +126,6 @@ void branchsim::update_perceptron_predictor(uint32_t pc, bool resolveDir, bool p
       }
     }
   }
-  this->ghr.pop_front();
-  this->ghr.push_back(resolveDir);
 }
 
 bool branchsim::perceptron_predictor(uint32_t pc) {
@@ -152,20 +154,41 @@ bool branchsim::perceptron_predictor(uint32_t pc) {
 }
 
 bool branchsim::backward_propagation_predictor(void) {
-  // TODO()
+  // TODO:
   return false;
 }
 
 void branchsim::update_backward_propagation_predictor(bool taken) {
-  // TODO()
+  // TODO:
 }
 
-void branchsim::update_saturate_bimodal_predictor(uint32_t pc, bool taken) {
-  // TODO()
+void branchsim::update_saturate_bi_mode_predictor(uint32_t pc, bool taken) {
+  uint32_t index = ((pc >> 2) & this->PHT_ADDR_MASK) ^ get_ghr_value(this->ghr, std::log2(this->pht_size));
+  saturat_status choice = this->pht_bi_choice.at(index);
+  if (choice == STRONGLY_TAKEN || choice == WEAKLY_TAKEN) {
+    this->pht_bi_taken_bias[index] = next_saturate_state(this->pht_bi_taken_bias.at(index), taken);
+  } else {
+    this->pht_bi_not_taken_bias[index] = next_saturate_state(this->pht_bi_not_taken_bias.at(index), taken);
+  }
+  this->pht_bi_choice[index] = next_saturate_state(choice, taken);
 }
 
-bool branchsim::saturate_bimodal_predictor(uint32_t pc) {
-  // TODO()
-  return false;
+bool branchsim::saturate_bi_mode_predictor(uint32_t pc) {
+  uint32_t index = ((pc >> 2) & this->PHT_ADDR_MASK) ^ get_ghr_value(this->ghr, std::log2(this->pht_size));
+  saturat_status choice = this->pht_bi_choice.at(index);
+  bool pht_taken_bias_prediction = this->pht_bi_taken_bias.at(index) == STRONGLY_TAKEN ||
+                                        this->pht_bi_taken_bias.at(index) == WEAKLY_TAKEN;
+  bool pht_not_taken_bias_prediction = this->pht_bi_not_taken_bias.at(index) == STRONGLY_TAKEN ||
+                                          this->pht_bi_not_taken_bias.at(index) == WEAKLY_TAKEN;
+  if (choice == STRONGLY_TAKEN || choice == WEAKLY_TAKEN) {
+    return pht_taken_bias_prediction;
+  } else {
+    return pht_not_taken_bias_prediction;
+  }
 }
 
+void branchsim::update_ghr(bool taken) {
+  // Shift the GHR left by 1 and insert the new value at the end.
+  this->ghr.pop_back();
+  this->ghr.push_front(taken);
+}

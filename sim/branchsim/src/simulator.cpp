@@ -1,7 +1,7 @@
 #include <iostream>
 #include <cstdlib>
 #include "defs.hpp"
-#include "debug.hpp"
+// #include "debug.hpp"
 #include "helper.hpp"
 
 void saturat_simulator(FILE *fp, struct SimConfig config) {
@@ -66,6 +66,7 @@ void global_history_simulator(FILE *fp, struct SimConfig config) {
       bpu_sim->update_saturate_global_history_predictor(pc, dnpc != pc + 4);
       btb_sim->update_btb(pc, dnpc);
     }
+    bpu_sim->update_ghr(dnpc != pc + 4);
     pc_cnt++;
     pc = dnpc;
   }
@@ -76,7 +77,7 @@ void global_history_simulator(FILE *fp, struct SimConfig config) {
   std::cout << "Misprediction rate: " << (static_cast<float>(mispredictions) / pc_cnt) * 100 << "%" << std::endl;
 }
 
-void bimodal_simulator(FILE *fp, struct SimConfig config) {
+void bimode_simulator(FILE *fp, struct SimConfig config) {
   auto bpu_simulator = create_simulator(config, "branchsim");
   auto bpu_sim = std::get_if<branchsim>(&bpu_simulator);
   auto btb_simulator = create_simulator(config, "btb");
@@ -91,7 +92,7 @@ void bimodal_simulator(FILE *fp, struct SimConfig config) {
     EXIT_FAILURE;
   }
   while (fread(&dnpc, sizeof(uint32_t), 1, fp) == 1) {
-    bool taken = bpu_sim->saturate_bimodal_predictor(pc);
+    bool taken = bpu_sim->saturate_bi_mode_predictor(pc);
     if (taken) {
       snpc = btb_sim->get_target(pc);
     } else {
@@ -99,10 +100,10 @@ void bimodal_simulator(FILE *fp, struct SimConfig config) {
     }
     if (snpc != dnpc) {
       mispredictions++;
-      bpu_sim->update_saturate_bimodal_predictor(pc, dnpc != pc + 4);
+      bpu_sim->update_saturate_bi_mode_predictor(pc, dnpc != pc + 4);
       btb_sim->update_btb(pc, dnpc);
     }
-    Log("pc: %x, snpc: %x, dnpc: %x", pc, snpc, dnpc);
+    bpu_sim->update_ghr(dnpc != pc + 4);
     pc_cnt++;
     pc = dnpc;
   }
@@ -175,7 +176,6 @@ void bp_predictor_simulator(FILE *fp, struct SimConfig config) {
       bpu_sim->update_backward_propagation_predictor(dnpc != pc + 4);
       btb_sim->update_btb(pc, dnpc);
     }
-    Log("pc: %x, snpc: %x, dnpc: %x", pc, snpc, dnpc);
     pc_cnt++;
     pc = dnpc;
   }
@@ -212,7 +212,6 @@ void local_history_simulator(FILE *fp, struct SimConfig config) {
       bpu_sim->update_saturate_local_history_predictor(dnpc != pc + 4);
       btb_sim->update_btb(pc, dnpc);
     }
-    Log("pc: %x, snpc: %x, dnpc: %x", pc, snpc, dnpc);
     pc_cnt++;
     pc = dnpc;
   }

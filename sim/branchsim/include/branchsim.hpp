@@ -24,8 +24,8 @@ class branchsim {
     branchsim(uint32_t pht_size);
     void update_saturate_branch_predictor(bool);
     bool saturate_branch_predictor(void);
-    void update_saturate_bimodal_predictor(uint32_t, bool);
-    bool saturate_bimodal_predictor(uint32_t);
+    void update_saturate_bi_mode_predictor(uint32_t, bool);
+    bool saturate_bi_mode_predictor(uint32_t);
     void update_saturate_global_history_predictor(uint32_t, bool);
     bool saturate_global_history_predictor(uint32_t);
     void update_saturate_local_history_predictor(bool);
@@ -34,6 +34,7 @@ class branchsim {
     bool perceptron_predictor(uint32_t);
     void update_backward_propagation_predictor(bool);
     bool backward_propagation_predictor(void);
+    void update_ghr(bool);
   private:
     // Two-digit saturation counter
     saturat_status saturat_counter;
@@ -44,8 +45,10 @@ class branchsim {
 
     std::vector<saturat_status> pht;
     // bi-mode predictor
-    std::vector<saturat_status> pht_bi_1;
-    std::vector<saturat_status> pht_bi_2;
+    std::vector<saturat_status> pht_bi_taken_bias;
+    std::vector<saturat_status> pht_bi_not_taken_bias;
+    std::vector<saturat_status> pht_bi_choice;
+    // perceptron predictor
     std::vector<std::vector<int32_t>> perceptron_table;
 
     uint32_t max_ghr_size = 0;

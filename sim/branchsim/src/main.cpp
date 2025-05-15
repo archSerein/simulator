@@ -8,12 +8,12 @@
 std::mutex info;
 
 static const std::unordered_map<std::string, std::function<void(FILE *, struct SimConfig)>> simulator_map = {
+  {"bp_predictor", bp_predictor_simulator},
+  {"local_history", local_history_simulator},
   {"saturat_simulator", saturat_simulator},
   {"global_history", global_history_simulator},
-  {"local_history", local_history_simulator},
-  {"bimodal", bimodal_simulator},
+  {"bimode", bimode_simulator},
   {"perceptron", perceptron_simulator},
-  {"bp_predictor", bp_predictor_simulator},
   // Add other simulator functions here
 };
 
